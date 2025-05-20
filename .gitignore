@@ -1,0 +1,11 @@
+whisper-small-test/
+data/
+tempCodeRunnerFile.py
+.cph/
+__pycache__/
+__pycache__/utils.cpython-313.pyc
+tempCodeRunnerFile.py
+.gradio/certificate.pem
+.gradio/
+.idea/
+music/

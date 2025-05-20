@@ -1,0 +1,9 @@
+gradio~=5.29.0
+librosa~=0.11.0
+transformers~=4.51.3
+torch~=2.7.0+cu118
+datasets~=3.6.0
+setuptools~=80.4.0
+evaluate~=0.4.3
+ollama~=0.4.8
+spotdl~=4.2.11
