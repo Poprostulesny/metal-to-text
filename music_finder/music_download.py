@@ -27,7 +27,7 @@ downloader_options: DownloaderOptions = {
     "overwrite": "skip",
     "search_query": None,
     "ffmpeg": "ffmpeg",
-    "bitrate": None,
+    # "bitrate": None,
     "ffmpeg_args": None,
     "format": "wav",
     "save_file": "spotdl_cache.txt",
@@ -86,7 +86,9 @@ for song, path in songs:
         song.lyrics = ut.sanitized_lyrics(song.lyrics,ollama_url,model,message)
         songs_new.append({
             "path":   str(path),   
-            "lyrics": song.lyrics
+            "lyrics": song.lyrics,
+            "artist":song.artist,
+            "genre":song.genres,
         })
     else:
         songs_bad.append(str(path))

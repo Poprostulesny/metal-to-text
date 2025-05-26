@@ -3,7 +3,10 @@ import numpy as np
 import soundfile as sf
 import librosa
 import os
+import shutil
 from audio_separator.separator import Separator
+
+
 
 def sanitized_lyrics(lyrics, ollama_url, model, message) -> str:
     client = Client(host=ollama_url)
@@ -27,10 +30,22 @@ def filename(path) -> str:
     while n>=0 and path[n]!='\\' and path[n]!='/':
         name=path[n]+name
         n-=1
-
+    # name = name.replace(' ', '_')
     return name
 
-def model(song_paths, tmp_dir="./tmp"):
+def model(music_lyric_dict, tmp_dir="./tmp",):
+    if not os.path.isdir("./final_music"):
+        os.makedirs("./final_music")
+    else:
+        shutil.rmtree("./final_music", ignore_errors=True)
+        os.makedirs("./final_music")
+
+    if not os.path.isdir(tmp_dir):
+        os.makedirs(tmp_dir)
+    else:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        os.makedirs(tmp_dir)
+
     sep = Separator(
         output_dir=tmp_dir,
         output_format='WAV',
@@ -38,26 +53,26 @@ def model(song_paths, tmp_dir="./tmp"):
     )
     # processing
     sep.load_model("vocals_mel_band_roformer.ckpt")
-    out_paths_mdx = sep.separate(song_paths)
+    out_paths_mdx = sep.separate(music_lyric_dict['path'])
 
     # doubling for the other model
     #
     sep.load_model("htdemucs_ft.yaml")
-    out_paths_demucs =sep.separate(song_paths)
-    print(out_paths_mdx)
-    print(out_paths_demucs)
+    out_paths_demucs =sep.separate(music_lyric_dict['path'])
 
 
-
+    # ensuring data is ok
     if type(out_paths_demucs) is str:
         out_paths_demucs = [out_paths_demucs]
         out_paths_mdx = [out_paths_mdx]
+
+    if len(out_paths_demucs)!=len(out_paths_mdx) or len(out_paths_demucs)!=len(music_lyric_dict['path']):
         print("Length of output paths and demucs paths do not match!")
         quit()
     n_fft = 2048
     hop_length = 512
 
-
+    final_paths = list()
     for i in range(len(out_paths_mdx)):
         out_paths_mdx[i]="./tmp/"+out_paths_mdx[i]
         out_paths_demucs[i]="./tmp/"+out_paths_demucs[i]
@@ -82,10 +97,12 @@ def model(song_paths, tmp_dir="./tmp"):
 
         if peak > 1.0:
             y_avg = y_avg / peak
-        print(song_paths[i])
-        input_filename = os.path.splitext(os.path.basename(song_paths[i]))[0]
-        safe_filename = "".join(c for c in input_filename if c.isalnum() or c in (' ', '-', '_')).rstrip()
-        out_path = os.path.join(r".\final", f"{safe_filename}.wav")
-        print(out_path)
+
+        input_filename = filename(music_lyric_dict['path'][i])
+        out_path =r"./final_music/" + input_filename
+        final_paths.append(out_path)
+        music_lyric_dict['path'][i] = out_path
         sf.write(out_path, y_avg, sr,format='WAV')
         print(f"Wrote averaged-spec ensemble: {out_path}")
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+    return music_lyric_dict

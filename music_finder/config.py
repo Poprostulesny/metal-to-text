@@ -3,7 +3,7 @@ timeTest = 15*60
 timeTraining = 2*60*60
 data_path =r"C:\Users\jarek\Documents\programowanie\metal-to-text\data"
 
-music_url = "https://open.spotify.com/playlist/6SWqIZS4QsIwgRzmo8y5qv?si=90f2480e6db74476"
+music_url = "https://open.spotify.com/playlist/1fVfA8Q47RAGZsHfzOXCkQ?si=34a4b36b28b4427e"
 model = "gemma2:2b"
 genius_token="alXXDbPZtK1m2RrZ8I4k2Hn8Ahsd0Gh_o076HYvcdlBvmc0ULL1H8Z8xRlew5qaG"
 
