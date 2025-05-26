@@ -1,9 +1,12 @@
 gradio~=5.29.0
 librosa~=0.11.0
 transformers~=4.51.3
-torch~=2.7.0+cu118
+torch~=2.3.0+cu121
 datasets~=3.6.0
 setuptools~=80.4.0
 evaluate~=0.4.3
 ollama~=0.4.8
 spotdl~=4.2.11
+
+numpy~=1.26.4
+soundfile~=0.13.1

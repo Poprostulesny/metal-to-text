@@ -68,7 +68,7 @@ downloader_options: DownloaderOptions = {
 
 
 
-message = 'you get this lyric string downloaded from a site, output to me only the lyrics without any special characters and anything else not being sang, no other words shoould come out of you then the output string remember to add spaces or interpunction marks where needed, delete every enter and quotation marks:'
+message = 'you get this lyric string downloaded from a site, output to me only the lyrics without any special characters and anything else not being sang, no other words should come out of you then the output string remember to add spaces or interpunction marks where needed, delete every enter and quotation marks.'
 spotdl = Spotdl(client_id='d2bc39f6f3ba4f86ba702ce43d9611e7', client_secret='349bdc3f646e4dca83efca5db4e2ff09',downloader_settings=downloader_options)
 
 # meta, songs = Playlist.get_metadata(url)
@@ -81,7 +81,8 @@ os.system('cls' if os.name == 'nt' else 'clear')
 # print(songs[1])
 
 for song, path in songs:
-    if song.lyrics!=None and path != None:     
+    if song.lyrics!=None and path != None:
+        print(song.lyrics)
         song.lyrics = ut.sanitized_lyrics(song.lyrics,ollama_url,model,message)
         songs_new.append({
             "path":   str(path),   
@@ -90,8 +91,13 @@ for song, path in songs:
     else:
         songs_bad.append(str(path))
 
-for i in songs_new:
-    shutil.
+
+
+if len(songs_bad)!=0:
+    for i in songs_bad:
+        if(i.path!=None):
+            os.remove(i)
+
 with open(location_dir+"music.json", "w", encoding="utf-8") as f:
     json.dump(songs_new, f, indent=2, ensure_ascii=False)
 
