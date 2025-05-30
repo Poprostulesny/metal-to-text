@@ -5,15 +5,21 @@ import json
 from spotdl.types.options import DownloaderOptions
 import music_utils as ut
 import config as cf
-
+import logging
+from progress.bar import IncrementalBar
 url = cf.get_music_url()
 model = cf.get_model()
 location_dir = r"C:\Users\jarek\Documents\programowanie\metal-to-text\music\\"
 ollama_url = cf.get_ollama_url()
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.ERROR,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 shutil.rmtree(location_dir,ignore_errors=True)
-
+os.mkdir(location_dir)
 downloader_options: DownloaderOptions = {
     # where and how files should be saved
     "audio_providers": ["youtube-music"],
@@ -27,7 +33,7 @@ downloader_options: DownloaderOptions = {
     "overwrite": "skip",
     "search_query": None,
     "ffmpeg": "ffmpeg",
-    # "bitrate": None,
+    "bitrate": "128k",
     "ffmpeg_args": None,
     "format": "wav",
     "save_file": "spotdl_cache.txt",
@@ -58,9 +64,9 @@ downloader_options: DownloaderOptions = {
     "ignore_albums": None,
     "proxy": None,
     "skip_explicit": False,
-    "log_format": None,
+    "log_format": None ,
     "redownload": False,
-    "skip_album_art": False,
+    "skip_album_art": True,
     "create_skip_file": False,
     "respect_skip_file": False,
     "sync_remove_lrc": False,
@@ -79,10 +85,9 @@ songs_new = list()
 songs_bad =list()
 os.system('cls' if os.name == 'nt' else 'clear')
 # print(songs[1])
-
+progress_bar = IncrementalBar('Downloading music', max=len(songs))
 for song, path in songs:
     if song.lyrics!=None and path != None:
-        print(song.lyrics)
         song.lyrics = ut.sanitized_lyrics(song.lyrics,ollama_url,model,message)
         songs_new.append({
             "path":   str(path),   
@@ -90,15 +95,18 @@ for song, path in songs:
             "artist":song.artist,
             "genre":song.genres,
         })
+        progress_bar.next()
     else:
         songs_bad.append(str(path))
-
+progress_bar.finish() 
 
 
 if len(songs_bad)!=0:
     for i in songs_bad:
-        if(i.path!=None):
+        try:
             os.remove(i)
+        except OSError as error:
+            logger.error(f"Błąd podczas usuwania pliku {i}: {error}")
 
 with open(location_dir+"music.json", "w", encoding="utf-8") as f:
     json.dump(songs_new, f, indent=2, ensure_ascii=False)
