@@ -33,7 +33,7 @@ downloader_options: DownloaderOptions = {
     "overwrite": "skip",
     "search_query": None,
     "ffmpeg": "ffmpeg",
-    "bitrate": "128k",
+    "bitrate": "256k",
     "ffmpeg_args": None,
     "format": "wav",
     "save_file": "spotdl_cache.txt",
@@ -98,7 +98,7 @@ for song, path in songs:
         progress_bar.next()
     else:
         songs_bad.append(str(path))
-progress_bar.finish() 
+progress_bar.finish()
 
 
 if len(songs_bad)!=0:
