@@ -9,7 +9,7 @@ import logging
 from progress.bar import IncrementalBar
 url = cf.get_music_url()
 model = cf.get_model()
-location_dir = r"C:\Users\jarek\Documents\programowanie\metal-to-text\music\\"
+location_dir = r"/home/mateusz/PycharmProjects/metal-to-text/music/"
 ollama_url = cf.get_ollama_url()
 
 logger = logging.getLogger(__name__)

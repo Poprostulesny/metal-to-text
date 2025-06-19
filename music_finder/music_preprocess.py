@@ -64,7 +64,7 @@ def main():
     music_dict = list()
     for i in range(len(music_lyric_dict['text'])):
         music_dict.append({
-            'audio_filepath':music_lyric_dict['audio_filepath'][i],
+            'audio_filepath':os.path.abspath(music_lyric_dict['audio_filepath'][i]),
             'text':music_lyric_dict['text'][i],
             'duration':ut.audio_length(music_lyric_dict['audio_filepath'][i]),
             'genre':music_lyric_dict['genre'][i],
@@ -98,12 +98,15 @@ def main():
         os.makedirs(out_dir)
 
     # Save the processed dataset to disk.
-    with open(out_dir + r"\test_data.json", 'w', encoding="utf-8") as file:
-        file.write(json.dumps(test_data, indent=4))
-    with open(out_dir + r"\train_data.json", 'w', encoding="utf-8") as file:
-        file.write(json.dumps(train_data, indent=4))
-    with open(out_dir + r"\valid_data.json", 'w', encoding="utf-8") as file:
-        file.write(json.dumps(valid_data, indent=4))
+    with open(out_dir + r"\test_data.jsonl", 'w', encoding="utf-8") as file:
+        for i in test_data:
+            file.write(json.dumps(i, ensure_ascii=True) + "\n")
+    with open(out_dir + r"\train_data.jsonl", 'w', encoding="utf-8") as file:
+        for i in train_data:
+            file.write(json.dumps(i, ensure_ascii=True) + "\n")
+    with open(out_dir + r"\valid_data.jsonl", 'w', encoding="utf-8") as file:
+        for i in valid_data:
+            file.write(json.dumps(i, ensure_ascii=True) + "\n")
 
     # Clean up GPU memory if available.
     if torch.cuda.is_available():

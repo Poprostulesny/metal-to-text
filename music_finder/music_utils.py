@@ -8,7 +8,7 @@ import shutil
 from audio_separator.separator import Separator
 import librosa
 import config as cf
-
+import re
 
 # Process lyrics using an AI model to sanitize and format them.
 def sanitized_lyrics(lyrics, ollama_url, model, message) -> str:
@@ -26,7 +26,8 @@ def sanitized_lyrics(lyrics, ollama_url, model, message) -> str:
     )
     # Remove newlines from the response for cleaner output.
     response.message.content= response.message.content.replace('\n', ' ')
-
+    response.message.content = re.sub(r"[^a-zA-Z.!0-9]",' ',response.message.content)
+    response.message.content = re.sub(r"\s+",' ', response.message.content)
     return response.message.content
 
 # Extract the filename from a full path by getting characters after the last slash or backslash.
@@ -93,8 +94,8 @@ def model(music_lyric_dict, tmp_dir="./tmp",):
         out_paths_mdx[i]="./tmp/"+out_paths_mdx[i]
         out_paths_demucs[i]="./tmp/"+out_paths_demucs[i]
         # Load audio data from both models.
-        y1, sr = librosa.load(out_paths_mdx[i])
-        y2, sr2 = librosa.load(out_paths_demucs[i])
+        y1, sr = librosa.load(out_paths_mdx[i], mono=True)
+        y2, sr2 = librosa.load(out_paths_demucs[i], mono=True)
 
         # Verify sampling rates match between models.
         if sr != sr2:
@@ -129,7 +130,7 @@ def model(music_lyric_dict, tmp_dir="./tmp",):
         final_paths.append(out_path)
         music_lyric_dict['audio_filepath'][i] = out_path
         # Save the processed audio to disk.
-        sf.write(out_path, y_avg, samplerate=16000,format='WAV')
+        sf.write(out_path, y_avg, samplerate=16000,format='WAV', )
 
         # Log the successful processing of the file.
         print(f"Wrote averaged-spec ensemble: {out_path}")
