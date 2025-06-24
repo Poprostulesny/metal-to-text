@@ -12,30 +12,32 @@ model:
   skip_nan_grad: false
   change_vocabulary: true
   gradient_checkpointing: true
-  cpu_offloading: true
-  cpu_offloading_weights: true
-  cpu_offloading_num_layers: 8
+#  cpu_offloading: true
+#  cpu_offloading_weights: true
+#  cpu_offloading_num_layers: 59
   use_precision_aware_optimizer: true
   recompute_granuality: full
   recompute_method: block
-  recompute_num_layers: 60
+  recompute_num_layers: 8
   transformer_engine: true
+  sequence_parallel: true
 
   train_ds:
     manifest_filepath: "/home/mateusz/PycharmProjects/metal-to-text/data/train_data_8.jsonl"
     sample_rate: ${model.sample_rate}
     batch_size: 1 # you may increase batch_size if your memory allows
     shuffle: true
-    num_workers: 8
+    num_workers: 0
     pin_memory: true
-    max_duration: 300
+    max_duration: 240
     min_duration: 0.1
+
     # tarred datasets
     is_tarred: false
     tarred_audio_filepaths: null
     shuffle_n: 2048
     # bucketing params
-    bucketing_strategy: "fully_randomized"
+    bucketing_strategy: "fixed"
     bucketing_batch_size: null
 
   validation_ds:
@@ -44,7 +46,7 @@ model:
     batch_size: 1
     shuffle: false
     use_start_end_token: false
-    num_workers: 8
+    num_workers: 0
     pin_memory: true
 
   test_ds:
@@ -53,7 +55,7 @@ model:
     batch_size: 1
     shuffle: false
     use_start_end_token: false
-    num_workers: 8
+    num_workers: 0
     pin_memory: true
 
   char_labels: # use for char based models
@@ -73,11 +75,16 @@ model:
     time_width: 0.05
 
   optim:
-    name: adamw
+    _target_: deepspeed.ops.adam.DeepSpeedCPUAdam   # lub deepspeed.ops.adam.FusedAdam
     lr: 1e-4
-    # optimizer arguments
-    betas: [0.9, 0.98]
+    betas: [ 0.9, 0.98 ]
     weight_decay: 1e-3
+
+    #    name: adamw
+#    lr: 1e-4
+#    # optimizer arguments
+#    betas: [0.9, 0.98]
+#    weight_decay: 1e-3
 
     # scheduler setup
     sched:
@@ -94,12 +101,7 @@ trainer:
   max_steps: -1
   val_check_interval: 1.0
   accelerator: gpu
-  strategy: auto       # ← usuwamy DeepSpeedStrategy
-
-
-
-
-
+  strategy: deepspeed_stage_3_offload
 
 
 
