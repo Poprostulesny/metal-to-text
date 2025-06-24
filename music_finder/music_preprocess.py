@@ -25,10 +25,10 @@ def main():
 
         # Optymalizacja pamięci GPU
         torch.cuda.empty_cache()
-        torch.cuda.memory.set_per_process_memory_fraction(0.8)
+        torch.cuda.memory.set_per_process_memory_fraction(1.0)
 
     # Define the directory path where music files are stored.
-    music_dir = r"C:\Users\jarek\Documents\programowanie\metal-to-text\music\\"
+    music_dir = r"/home/mateusz/PycharmProjects/metal-to-text/music/"
 
     # Check if a music directory exists and exit if not.
     if not os.path.isdir(music_dir):
@@ -98,13 +98,13 @@ def main():
         os.makedirs(out_dir)
 
     # Save the processed dataset to disk.
-    with open(out_dir + r"\test_data.jsonl", 'w', encoding="utf-8") as file:
+    with open(out_dir + r"/test_data_1.jsonl", 'w', encoding="utf-8") as file:
         for i in test_data:
             file.write(json.dumps(i, ensure_ascii=True) + "\n")
-    with open(out_dir + r"\train_data.jsonl", 'w', encoding="utf-8") as file:
+    with open(out_dir + r"/train_data_8.jsonl", 'w', encoding="utf-8") as file:
         for i in train_data:
             file.write(json.dumps(i, ensure_ascii=True) + "\n")
-    with open(out_dir + r"\valid_data.jsonl", 'w', encoding="utf-8") as file:
+    with open(out_dir + r"/valid_data_1.jsonl", 'w', encoding="utf-8") as file:
         for i in valid_data:
             file.write(json.dumps(i, ensure_ascii=True) + "\n")
 

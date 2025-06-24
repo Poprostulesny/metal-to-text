@@ -2,7 +2,7 @@ model_path = './whisper-small-test'
 timeTest = 15*60
 timeTraining = 2*60*60
 data_path ="./data/"
-
+music_path = "/home/mateusz/PycharmProjects/metal-to-text/music"
 music_url = "https://open.spotify.com/playlist/6SWqIZS4QsIwgRzmo8y5qv?si=541628d64450415f"
 model = "gemma2:2b"
 genius_token="alXXDbPZtK1m2RrZ8I4k2Hn8Ahsd0Gh_o076HYvcdlBvmc0ULL1H8Z8xRlew5qaG"
@@ -29,3 +29,5 @@ def get_model_path()-> str:
 
 def get_genius_token()-> str:
     return genius_token
+def get_music_path()-> str:
+    return music_path
