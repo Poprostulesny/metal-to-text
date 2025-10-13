@@ -1,7 +1,7 @@
 model_path = './whisper-small-test'
 timeTest = 15*60
 timeTraining = 2*60*60
-data_path =r"C:\Users\jarek\Documents\programowanie\metal-to-text\data"
+data_path =r"/home/mateusz/PycharmProjects/metal-to-text/data"
 
 music_url = "https://open.spotify.com/playlist/6SWqIZS4QsIwgRzmo8y5qv?si=f2a06d6b019f40cb"
 model = "gemma2:2b"
