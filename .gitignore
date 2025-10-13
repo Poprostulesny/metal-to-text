@@ -9,3 +9,5 @@ tempCodeRunnerFile.py
 .gradio/
 .idea/
 music/
+.venv/
+music_finder/final_music

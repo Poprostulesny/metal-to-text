@@ -64,7 +64,7 @@ def main():
     music_dict = list()
     for i in range(len(music_lyric_dict['text'])):
         music_dict.append({
-            'audio_filepath':music_lyric_dict['audio_filepath'][i],
+            'audio_filepath':os.path.abspath(music_lyric_dict['audio_filepath'][i]),
             'text':music_lyric_dict['text'][i],
             'duration':ut.audio_length(music_lyric_dict['audio_filepath'][i]),
             'genre':music_lyric_dict['genre'][i],

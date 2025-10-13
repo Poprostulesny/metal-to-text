@@ -1,0 +1,9 @@
+import nemo.collections.asr as nemo_asr
+asr_model = nemo_asr.models.ASRModel.from_pretrained(model_name="nvidia/parakeet-tdt-0.6b-v2")
+
+print("\n\n")
+output = asr_model.transcribe([r'C:\Users\jarek\Documents\programowanie\metal-to-text\music_finder\final_music\Kyle Alessandro - Lighter.wav'])
+print(output[0].text)
+print("legit\n\n")
+print("Golden girl dressed in ice A heart as dark as night You got me to dim my light no more  I really think I bought your lies  Did anything to keep you mine You kept me hooked on your line no more (No more)  Somewhere along the way, I lost my might  I had to walk a hundred thousand miles  I'm not afraid to set it all on fire I won't fall again, I'll be my own lighter  Nothing can burn me now  I'll be my own lighter I feel a spark inside me, I don't need savin'  No way, no way, 'cause I'm my own, I'm my own lighter  I'm tired of a million tries  To fight the signs And when everybody tried to tell me  I shouldv\u0435 known that it was time to break free  Your reigns that kept me at your mercy  I'll burn them to the ground  No more, no more, ignite the fire   Somewhere along the way, I lost my might  I had to walk a hundred thousand miles  I'm not afraid to set it all on fire  I won't fall again, I'll be my own lighter  Nothing can burn me now  I'll be my own lighter I feel a spark inside me, I don't need savin'  No way, no way, 'cause I'm my own, I'm my own lighter  Silence fills the room  And I've taken off my jewels  I wish none of this was true  But there's a fire growing too, yeah    Nothing can burn me down  I'm my own, I'm my own lighter   ",
+        )
