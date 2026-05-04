@@ -194,8 +194,10 @@ def setup_dataloaders(asr_model, cfg):
 
 
 @hydra_runner(config_path="./model", config_name="config")
-def main(cfg):
-    torch.distributed.init_process_group(backend='nccl', init_method="tcp://127.0.0.1:29500", rank = 0, world_size = 1)
+def main(cfg):\
+    # Not needed for single GPU training
+    # torch.distributed.init_process_group(backend='nccl', init_method="tcp://127.0.0.1:29500", rank = 0, world_size = 1)
+
     torch.set_float32_matmul_precision('medium')
 
     logging.info(f'Hydra config: {OmegaConf.to_yaml(cfg)}')

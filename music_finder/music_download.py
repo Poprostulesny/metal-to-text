@@ -2,34 +2,43 @@ from spotdl import Spotdl
 import shutil
 import os
 import json
+import sys
+from pathlib import Path
 from spotdl.types.options import DownloaderOptions
 import music_utils as ut
-import config as cf
 import logging
 from progress.bar import IncrementalBar
-url = cf.get_music_url()
-model = cf.get_model()
-location_dir = r"/home/mateusz/PycharmProjects/metal-to-text/music/"
-ollama_url = cf.get_ollama_url()
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+import project_config as pc
+
+url = pc.get_music_url()
+model = pc.get_model()
+location_dir = pc.get_music_path()
+ollama_url = pc.get_ollama_url()
+music_metadata_path = pc.get_music_metadata_path()
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.ERROR,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-
-shutil.rmtree(location_dir,ignore_errors=True)
-os.mkdir(location_dir)
+if os.path.exists(location_dir):
+    shutil.rmtree(location_dir, ignore_errors=True)
+os.makedirs(location_dir, exist_ok=True)
 downloader_options: DownloaderOptions = {
     # where and how files should be saved
     "audio_providers": ["youtube-music"],
     "lyrics_providers": ["genius", "azlyrics", "musixmatch"],
-    "genius_token": cf.get_genius_token(),
+    "genius_token": pc.get_genius_token(),
     "playlist_numbering": False,
     "playlist_retain_track_cover": False,
     "scan_for_songs": False,
     "m3u": None,
-    "output": location_dir+"{artists} - {title}.{output-ext}",
+    "output": os.path.join(location_dir, "{artists} - {title}.{output-ext}"),
     "overwrite": "skip",
     "search_query": None,
     "ffmpeg": "ffmpeg",
@@ -87,17 +96,31 @@ os.system('cls' if os.name == 'nt' else 'clear')
 # print(songs[1])
 progress_bar = IncrementalBar('Downloading music', max=len(songs))
 for song, path in songs:
-    if song.lyrics!=None and path != None:
-        song.lyrics = ut.sanitized_lyrics(song.lyrics,ollama_url,model,message)
+    if song.lyrics is not None and path is None:
+
+        song.lyrics=None
+        cnt = 0
+
+        while song.lyrics is None:
+            song.lyrics = ut.sanitized_lyrics(song.lyrics, ollama_url, model, message)
+            if cnt >3:
+                songs_bad.append(str(path))
+                break
+
+        if cnt >3:
+            continue
+
         songs_new.append({
             "path":   str(path),   
             "lyrics": song.lyrics,
             "artist":song.artist,
             "genre":song.genres,
         })
-        progress_bar.next()
+
     else:
         songs_bad.append(str(path))
+    progress_bar.next()
+
 progress_bar.finish()
 
 
@@ -108,7 +131,7 @@ if len(songs_bad)!=0:
         except OSError as error:
             logger.error(f"Błąd podczas usuwania pliku {i}: {error}")
 
-with open(location_dir+"music.json", "w", encoding="utf-8") as f:
+with open(music_metadata_path, "w", encoding="utf-8") as f:
     json.dump(songs_new, f, indent=2, ensure_ascii=False)
 
 print("Finished successfully!!")

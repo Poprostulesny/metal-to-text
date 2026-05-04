@@ -1,4 +1,3 @@
-import utils as ut
 import json
 import logging
 import os
@@ -6,8 +5,10 @@ from typing import List, Optional
 import tokenizers
 from nemo.collections.common.tokenizers.sentencepiece_tokenizer import create_spt_model
 from nemo.utils.data_utils import DataStoreObject
+import project_config as pc
+import shutil
 
-lyrics_to_train = ut.get_text()
+
 
 
 class Args:
@@ -79,7 +80,17 @@ class Args:
         self.log = log
 
 
-args = Args(data_root="./model",manifest="./data/test_data_1.jsonl,./data/train_data_8.jsonl,./data/valid_data_1.jsonl",vocab_size=2048)
+args = Args(
+    data_root=pc.get_model_dir(),
+    manifest=",".join(
+        [
+            pc.get_test_manifest_path(),
+            pc.get_train_manifest_path(),
+            pc.get_valid_manifest_path(),
+        ]
+    ),
+    vocab_size=2048,
+)
 def __build_document_from_manifests(
     data_root: str, manifests: str,
 ):
@@ -276,9 +287,14 @@ def main():
         spe_byte_fallback=spe_byte_fallback,
         spe_split_digits=spe_split_digits,
     )
-
+    final_tokenizer_dir = pc.get_tokenizer_dir()
+    if os.path.exists(final_tokenizer_dir):
+        shutil.rmtree(final_tokenizer_dir)
+    shutil.copytree(tokenizer_path, final_tokenizer_dir)
     print("Serialized tokenizer at location :", tokenizer_path)
+    print("Copied tokenizer to :", final_tokenizer_dir)
     logging.info('Done!')
+
 
 
 if __name__ == "__main__":

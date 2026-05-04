@@ -4,6 +4,8 @@ name: "Speech_To_Text_Finetuning"
 # We do not currently support `init_from_ptl_ckpt` to create a single script for all types of models.
 init_from_nemo_model: "/home/mateusz/PycharmProjects/metal-to-text/model/parakeet-rnnt-0.6b.nemo" # path to nemo model
 
+# Or in the case of first time training
+#init_from_pretrained_model: "nvidia/parakeet-rnnt-0.6b"
 model:
   sample_rate: 16000
   compute_eval_loss: false # eval samples can be very long and exhaust memory. Disable computation of transducer loss during validation/testing with this flag.
@@ -12,13 +14,17 @@ model:
   skip_nan_grad: false
   change_vocabulary: true
   gradient_checkpointing: true
-#  cpu_offloading: true
-#  cpu_offloading_weights: true
-#  cpu_offloading_num_layers: 59
-  use_precision_aware_optimizer: true
-  recompute_granuality: full
+
+#  for vram poor ppls like me
+  cpu_offloading: true
+  cpu_offloading_weights: false #set to true in a very big crunch
+  cpu_offloading_num_layers: 24 #number of layers to offload to cpu(all layers of the model)
+  recompute_granularity: full
   recompute_method: block
-  recompute_num_layers: 8
+  recompute_num_layers: 24 #number of layers to offload to cpu(all layers of the model)
+
+  use_precision_aware_optimizer: true
+
   transformer_engine: true
   sequence_parallel: true
 

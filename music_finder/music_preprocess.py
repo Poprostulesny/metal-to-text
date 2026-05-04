@@ -2,13 +2,20 @@
 # Import necessary libraries for data processing, file operations, and machine learning.
 import json 
 import os
+from pathlib import Path
+import sys
 import time
 import  torch
 import shutil
-import config as cf
 import music_utils as ut
 from sklearn.model_selection import train_test_split
 from torch.cuda.amp import autocast
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+import project_config as pc
 
 # Configure PyTorch settings for optimal performance.
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -26,9 +33,10 @@ def main():
         # Optymalizacja pamięci GPU
         torch.cuda.empty_cache()
         torch.cuda.memory.set_per_process_memory_fraction(1.0)
-
+    
     # Define the directory path where music files are stored.
-    music_dir = r"/home/mateusz/PycharmProjects/metal-to-text/music/"
+    music_dir = pc.get_music_path()
+    music_metadata_path = pc.get_music_metadata_path()
 
     # Check if a music directory exists and exit if not.
     if not os.path.isdir(music_dir):
@@ -36,7 +44,7 @@ def main():
         quit()
 
     # Load music metadata from a JSON file.
-    with open(music_dir+"music.json",'r', encoding='utf-8') as file:
+    with open(music_metadata_path, 'r', encoding='utf-8') as file:
         music_file = json.load(file)
 
 
@@ -88,7 +96,7 @@ def main():
     print(valid_data)
 
     # Get the output directory path from configuration.
-    out_dir= cf.get_data_path()
+    out_dir = pc.get_data_path()
 
     # Create or recreate the output directory.
     if not os.path.isdir(out_dir):
