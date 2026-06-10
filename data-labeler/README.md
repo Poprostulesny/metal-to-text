@@ -1,51 +1,84 @@
 # Data Labeler
 
-Local Streamlit tool for cutting vocal-only song stems into short NeMo ASR
-training segments.
+Fast, local tool for cutting vocal-only song stems into short NeMo ASR training
+segments. Waveform-first: Silero VAD proposes regions, you fine-tune them by
+drag, and you grab the text straight from the lyrics by selecting it.
 
 ## Requirements
 
-The app expects system `ffmpeg` and `ffprobe` to be available on `PATH`.
-
-## Install
-
-From the repository root:
-
-```bash
-<ui-venv>/bin/python -m pip install -r data-labeler/requirements-labeler.txt
-```
+System `ffmpeg` and `ffprobe` on `PATH`. Everything else installs into an
+isolated `data-labeler/.venv` on first launch (small: FastAPI + onnxruntime,
+no torch). The Silero VAD ONNX model downloads automatically into `models/`.
 
 ## Run
 
-```bash
-<ui-venv>/bin/streamlit run data-labeler/app.py
+Windows:
+
+```bat
+data-labeler\run.bat
 ```
+
+Linux / macOS:
+
+```bash
+data-labeler/run.sh
+```
+
+First launch creates the venv, installs deps and opens
+<http://127.0.0.1:8765>. Later launches start instantly. Override the port with
+`LABELER_PORT` (default 8765 — the 8000 range is often Hyper-V-reserved on
+Windows).
+
+## Workflow
+
+1. Pick a song (top bar). The waveform loads and Silero VAD regions appear; the
+   next few songs are pre-computed in the background so switching is instant.
+2. Click a VAD region (or drag your own) to set the **active** selection. Drag
+   the handles to fine-tune.
+3. Select the matching text in the **Lyrics** panel — it fills the segment text
+   and is greyed out once saved, with a cursor marking where you left off.
+4. **Save**. The clip and manifest row are written and the splits rebuilt.
+
+Click a saved segment to edit its bounds/text, or delete it.
+
+### Shortcuts
+
+| Key | Action |
+| --- | --- |
+| `Space` | play active region |
+| `L` | toggle loop |
+| `Enter` / `Ctrl+Enter` | save segment |
+| `Tab` / `Shift+Tab` | next / previous VAD region |
+| `←` `→` | nudge region end (`Shift` = bigger step) |
+| `Alt`+`←` `→` | nudge region start |
+| `Del` / `Backspace` | delete the segment being edited |
+| `Ctrl+Z` | undo last saved segment |
 
 ## Output
 
-The app writes:
+The manifest format is unchanged and stays 1:1 for NeMo:
 
-- WAV clips to `data-labeler/output/audio/`
-- NeMo JSONL records to `data-labeler/output/segments.jsonl`
-- auto-exported splits to `data/train_data_8.jsonl`, `data/test_data_1.jsonl`,
-  and `data/valid_data_1.jsonl`
+- WAV clips → `data-labeler/output/audio/` (mono 16 kHz)
+- master manifest → `data-labeler/output/segments.jsonl`
+- rebuilt splits → `data/train_data_8.jsonl`, `data/test_data_1.jsonl`,
+  `data/valid_data_1.jsonl` (seeded 80/10/10, rebuilt after every change)
 
-Each saved segment is a mono 16 kHz WAV and a manifest row with
-`audio_filepath`, `duration`, `text`, `artist`, `source_audio_filepath`,
-`source_start`, `source_end`, and `source_index`.
+Each manifest row: `audio_filepath`, `duration`, `text`, `artist`, `genre`,
+`source_audio_filepath`, `source_start`, `source_end`, `source_index`.
 
-Reopening the app preserves previous work and appends new segments to the same
-manifest. The undo button removes the latest segment for the current source song.
-After every save or undo, the app rewrites the 80/10/10 train/test/valid split
-in `data/`. The sidebar also has a manual export button.
+UI-only state (which lyric range each segment used) lives separately in
+`data-labeler/output/label_state.json`, so the manifest stays clean.
 
+## Architecture
 
-## Smoke check
-
-After saving at least one segment:
-
-Use `ffprobe` on one of the generated clips:
-
-```bash
-ffprobe -v error -show_entries stream=sample_rate,channels -of default=nw=1 data-labeler/output/audio/<segment>.wav
+```
+server/   FastAPI backend
+  config.py    paths + constants
+  music.py     read music.json, map vocal stems
+  audio.py     ffmpeg/ffprobe cut + probe
+  manifest.py  master segments.jsonl + derived splits (CRUD)
+  state.py     label_state.json sidecar (lyric spans)
+  vad.py       Silero VAD via onnxruntime, disk cache + prefetch
+  main.py      HTTP routes
+web/      wavesurfer.js frontend (no build step)
 ```
