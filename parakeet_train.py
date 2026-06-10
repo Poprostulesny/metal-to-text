@@ -53,11 +53,60 @@ python <NEMO_ROOT>/examples/asr/speech_to_text_finetune.py \
 For documentation on fine-tuning this model, please visit:
 https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/main/asr/configs.html#fine-tuning-configurations
 """
+import glob
+import faulthandler
+import os
+import sys
+import sysconfig
 import time
+
+os.environ.setdefault("NUMBA_CUDA_USE_NVIDIA_BINDING", "1")
+os.environ.setdefault("STRICT_NUMBA_COMPAT_CHECK", "0")
+os.environ.setdefault("NUMBA_CUDA_ENABLE_MINOR_VERSION_COMPATIBILITY", "1")
+
+faulthandler.enable(all_threads=True)
+
+
+def _restart_with_torch_cuda_libs():
+    """Prepend pip CUDA wheel libraries before importing torch/lightning."""
+    if os.environ.get("PARAKEET_DEBUG_FORWARD") == "1":
+        os.environ.setdefault("CUDA_LAUNCH_BLOCKING", "1")
+        os.environ.setdefault("TORCH_SHOW_CPP_STACKTRACES", "1")
+
+    if os.environ.get("PARAKEET_TORCH_CUDA_LIBS_READY") == "1":
+        return
+
+    purelib = sysconfig.get_paths().get("purelib")
+    if not purelib:
+        return
+
+    lib_dirs = []
+    lib_dirs.extend(glob.glob(os.path.join(purelib, "nvidia", "*", "lib")))
+    lib_dirs.extend(glob.glob(os.path.join(purelib, "*", "lib")))
+    lib_dirs = [path for path in lib_dirs if os.path.isdir(path)]
+    if not lib_dirs:
+        return
+
+    current_paths = [path for path in os.environ.get("LD_LIBRARY_PATH", "").split(os.pathsep) if path]
+    missing_paths = [path for path in lib_dirs if path not in current_paths]
+    if not missing_paths:
+        os.environ["PARAKEET_TORCH_CUDA_LIBS_READY"] = "1"
+        return
+
+    env = os.environ.copy()
+    env["PARAKEET_TORCH_CUDA_LIBS_READY"] = "1"
+    env["LD_LIBRARY_PATH"] = os.pathsep.join(missing_paths + current_paths)
+    argv = getattr(sys, "orig_argv", [sys.executable, *sys.argv])
+    os.execvpe(sys.executable, [sys.executable, *argv[1:]], env)
+
+
+_restart_with_torch_cuda_libs()
+
 import lightning.pytorch as pl
-from omegaconf import OmegaConf
+from omegaconf import OmegaConf, open_dict
 
 from nemo.collections.asr.models import ASRModel
+from nemo.collections.asr.losses.rnnt import RNNTLoss
 from nemo.core.config import hydra_runner
 from nemo.utils import logging, model_utils
 from nemo.utils.exp_manager import exp_manager
@@ -193,6 +242,56 @@ def setup_dataloaders(asr_model, cfg):
     return asr_model
 
 
+def apply_model_overrides(asr_model, cfg):
+    """
+    Applies fine-tuning config overrides that must affect the restored model config.
+    """
+    model_cfg = cfg.get("model", {})
+
+    if model_cfg.get("loss", None) is not None:
+        with open_dict(asr_model.cfg):
+            asr_model.cfg.loss = model_cfg.loss
+
+        loss_name, loss_kwargs = asr_model.extract_rnnt_loss_cfg(asr_model.cfg.get("loss", None))
+        asr_model.loss = RNNTLoss(
+            num_classes=asr_model.joint.num_classes_with_blank - 1,
+            loss_name=loss_name,
+            loss_kwargs=loss_kwargs,
+            reduction=asr_model.cfg.get("rnnt_reduction", "mean_batch"),
+        )
+        logging.info(f"Rebuilt RNNT loss after tokenizer update: {type(asr_model.loss._loss).__module__}.{type(asr_model.loss._loss).__name__}")
+        if getattr(asr_model.joint, "fuse_loss_wer", False):
+            asr_model.joint.set_loss(asr_model.loss)
+
+    return asr_model
+
+
+def enable_debug_forward_hooks(asr_model):
+    if os.environ.get("PARAKEET_DEBUG_FORWARD") != "1":
+        return
+
+    def sync():
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
+    def add_hooks(name, module):
+        def before(_module, _args):
+            print(f"[parakeet-debug] before {name}", flush=True)
+            sync()
+
+        def after(_module, _args, _output):
+            sync()
+            print(f"[parakeet-debug] after {name}", flush=True)
+
+        module.register_forward_pre_hook(before)
+        module.register_forward_hook(after)
+
+    for name in ("preprocessor", "spec_augmentation", "encoder", "decoder", "joint", "loss"):
+        module = getattr(asr_model, name, None)
+        if module is not None:
+            add_hooks(name, module)
+
+
 @hydra_runner(config_path="./model", config_name="config")
 def main(cfg):\
     # Not needed for single GPU training
@@ -214,6 +313,7 @@ def main(cfg):\
 
     # Check vocabulary type and update if needed
     asr_model = check_vocabulary(asr_model, cfg)
+    asr_model = apply_model_overrides(asr_model, cfg)
 
     # Setup Data
     asr_model = setup_dataloaders(asr_model, cfg)
@@ -224,6 +324,8 @@ def main(cfg):\
     # Setup SpecAug
     if hasattr(cfg.model, 'spec_augment') and cfg.model.spec_augment is not None:
         asr_model.spec_augment = ASRModel.from_config_dict(cfg.model.spec_augment)
+
+    enable_debug_forward_hooks(asr_model)
 
     trainer.fit(asr_model)
 

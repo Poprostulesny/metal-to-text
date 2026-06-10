@@ -1,18 +1,28 @@
-# Model training and tokenizer preparation
+--index-url https://download.pytorch.org/whl/cu126
+--extra-index-url https://pypi.org/simple
+--extra-index-url https://pypi.nvidia.com
+
+# Keep the training stack pinned. Leaving torch/lightning open lets pip install
+# newer ABI combinations that can segfault inside CUDA extensions.
+#
+# Install Transformer Engine in a second pip command after this file. Its
+# PyTorch extension imports torch while generating package metadata, so a fresh
+# one-shot install can fail with "This package needs Torch to build."
 numpy>=1.22,<2
-torch~=2.7.1
-nemo-toolkit~=2.3.1
+torch==2.7.1
+torchaudio==2.7.1
+nemo-toolkit[asr]~=2.3.1
+tokenizers~=0.21.1
+httpx>=0.24.0
 transformers~=4.51.3
 datasets~=3.6.0
 evaluate~=0.4.3
 setuptools~=80.9.0
-
-# Direct imports used by training/tokenizer scripts
-lightning~=2.5.1
+lightning==2.4.0
+pytorch-lightning==2.4.0
 omegaconf~=2.3.0
-tokenizers~=0.21.1
-deepseed
-transformer-engine
+deepspeed
 ninja
-# Used by parts of the current stack and compatible with training env
-httpx>=0.24.0
+pynvjitlink-cu12
+cuda-python==12.6.2.post1
+pybind11

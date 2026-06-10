@@ -103,6 +103,7 @@ from typing import List, Optional
 
 import tokenizers
 
+
 from nemo.collections.common.tokenizers.sentencepiece_tokenizer import create_spt_model
 from nemo.utils.data_utils import DataStoreObject
 
@@ -308,7 +309,6 @@ def __process_data(
 
         if not os.path.exists(tokenizer_dir):
             os.makedirs(tokenizer_dir)
-
         tokenizer = tokenizers.BertWordPieceTokenizer(lowercase=lower_case)
 
         tokenizer.train(text_path, vocab_size=vocab_size)

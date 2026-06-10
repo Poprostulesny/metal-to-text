@@ -11,3 +11,10 @@ tempCodeRunnerFile.py
 music/
 .venv/
 music_finder/final_music
+model/text_corpus*
+model/tokenizer*
+model/model*
+model/parakeet-*
+model/backup
+nemo_experiments*
+spotdl*

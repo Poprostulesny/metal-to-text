@@ -1,0 +1,8 @@
+--index-url https://download.pytorch.org/whl/cu126
+--extra-index-url https://pypi.org/simple
+--extra-index-url https://pypi.nvidia.com
+
+# Install this only after requirements-train.txt, with --no-build-isolation.
+# transformer_engine_torch is an sdist for many version combinations and needs
+# torch importable before metadata/build steps start.
+transformer-engine[pytorch,core_cu12]==2.15.0

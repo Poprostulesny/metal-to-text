@@ -1,21 +1,111 @@
 # Import libraries for AI processing, audio manipulation, and file operations.
 from ollama import Client, Message  # Import Message class
+import json
 import numpy as np
 import soundfile as sf
 import os
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 from audio_separator.separator import Separator
 import librosa
 import re
-
+import gc
+import torch
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import project_config as pc
 
+def cuda_cleanup():
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+
+
+def chunks(items: list[str], size: int):
+    for start in range(0, len(items), size):
+        yield start, items[start:start + size]
+
+
+def run_separator_worker(
+    audio_paths: list[str],
+    output_dir: str,
+    model_name: str,
+    chunk_size: int = 25,
+) -> list[str]:
+    worker_script = PROJECT_ROOT / "music_finder" / "separation_worker.py"
+    worker_dir = Path(output_dir) / "worker_manifests"
+    worker_dir.mkdir(parents=True, exist_ok=True)
+
+    all_results = []
+    chunk_total = (len(audio_paths) + chunk_size - 1) // chunk_size
+
+    for chunk_number, (start, chunk_paths) in enumerate(chunks(audio_paths, chunk_size), start=1):
+        jobs = [
+            {"index": start + offset + 1, "total": len(audio_paths), "input": path}
+            for offset, path in enumerate(chunk_paths)
+        ]
+        input_json = worker_dir / f"{model_name}_{start}_jobs.json"
+        output_json = worker_dir / f"{model_name}_{start}_results.json"
+
+        with open(input_json, "w", encoding="utf-8") as file:
+            json.dump(jobs, file, ensure_ascii=True, indent=2)
+
+        print(
+            f"{model_name}: starting worker chunk {chunk_number}/{chunk_total} "
+            f"for songs {start + 1}-{start + len(chunk_paths)}",
+            flush=True,
+        )
+
+        env = os.environ.copy()
+        env.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(worker_script),
+                "--input-json",
+                str(input_json),
+                "--output-json",
+                str(output_json),
+                "--output-dir",
+                output_dir,
+                "--model",
+                model_name,
+                "--chunk-start",
+                str(chunk_number),
+                "--chunk-total",
+                str(chunk_total),
+            ],
+            check=False,
+            env=env,
+        )
+
+        if not output_json.exists():
+            raise RuntimeError(f"{model_name} worker failed before writing result manifest: {output_json}")
+
+        with open(output_json, "r", encoding="utf-8") as file:
+            results = json.load(file)
+
+        failed = [item for item in results if not item["ok"]]
+        if failed:
+            print(failed[0]["error"], flush=True)
+            raise RuntimeError(f"{model_name} worker failed for input: {failed[0]['input']}")
+
+        if completed.returncode != 0:
+            raise RuntimeError(f"{model_name} worker exited with code {completed.returncode}")
+
+        all_results.extend(results)
+
+    all_results.sort(key=lambda item: item["index"])
+    output_paths = []
+    for item in all_results:
+        output_paths.extend(item["outputs"])
+
+    return output_paths
 # Process lyrics using an AI model to sanitize and format them.
 def sanitized_lyrics(lyrics, ollama_url, model, message) -> str | None:
     # Initialize the client with the provided URL.
@@ -28,10 +118,11 @@ def sanitized_lyrics(lyrics, ollama_url, model, message) -> str | None:
     # Call chat API with the prepared messages.
     response = client.chat(
         model=model,
-        messages=[system_msg, user_msg]
+        messages=[system_msg, user_msg],
+        stream=False,
     )
     # Remove newlines from the response for cleaner output.
-    content = response['message']['content']
+    content = response.message.content
     if not content:
         return None
     content = content.replace('\n', ' ')
@@ -63,17 +154,15 @@ def separator_output_path(base_dir: str, path: str) -> str:
     return str(joined)
 
 # Process music files to extract and enhance vocals using multiple models.
-def model(music_lyric_dict, tmp_dir=None):
+def model(music_lyric_dict, memory_threshold, tmp_dir=None):
     if tmp_dir is None:
         tmp_dir = pc.get_tmp_path()
     final_music_dir = pc.get_final_music_path()
+    audio_paths = music_lyric_dict['audio_filepath']
+    total_songs = len(audio_paths)
 
-    # Create or recreate the final music output directory.
-    if not os.path.isdir(final_music_dir):
-        os.makedirs(final_music_dir)
-    else:
-        shutil.rmtree(final_music_dir, ignore_errors=True)
-        os.makedirs(final_music_dir)
+    # Keep existing processed stems so preprocessing can run incrementally.
+    os.makedirs(final_music_dir, exist_ok=True)
 
     # Create or recreate the temporary directory for processing.
     if not os.path.isdir(tmp_dir):
@@ -88,23 +177,42 @@ def model(music_lyric_dict, tmp_dir=None):
         output_format='WAV',
         output_single_stem="Vocals",
         use_autocast=True,
+        demucs_params={
+            "segment_size": 45,
+            "shifts": 1,
+            "overlap": 0.1,
+            "segments_enabled": True,
+        }
     )
 
     # Load the first vocal separation model and process all audio files.
+    out_paths_mdx:list[str] = []
     sep.load_model("vocals_mel_band_roformer.ckpt")
-    out_paths_mdx = sep.separate(music_lyric_dict['audio_filepath'])
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    total_memory = torch.cuda.get_device_properties(device).total_memory
+    for index, path in enumerate(audio_paths, start=1):
+        print(f"RoFormer vocals: processing song {index}/{total_songs}: {filename(path)}", flush=True)
+        out_paths_mdx.extend(sep.separate(path))
+        if torch.cuda.memory_allocated() > total_memory*memory_threshold:
+            del sep.model_instance
+            sep.model_instance=None
+            cuda_cleanup()
+            sep.load_model("vocals_mel_band_roformer.ckpt")
 
     # Load the second vocal separation model for ensemble learning.
-    sep.load_model("htdemucs_ft.yaml")
-    out_paths_demucs =sep.separate(music_lyric_dict['audio_filepath'])
+    del sep
+    cuda_cleanup()
+    out_paths_demucs = run_separator_worker(
+        audio_paths=audio_paths,
+        output_dir=tmp_dir,
+        model_name="htdemucs_ft.yaml",
+        chunk_size=25,
+    )
 
-    # Convert single string outputs to lists for consistent processing.
-    if type(out_paths_demucs) is str:
-        out_paths_demucs = [out_paths_demucs]
-        out_paths_mdx = [out_paths_mdx]
+
 
     # Validate that all output paths match in length to ensure proper processing.
-    if len(out_paths_demucs)!=len(out_paths_mdx) or len(out_paths_demucs)!=len(music_lyric_dict['audio_filepath']):
+    if len(out_paths_demucs)!=len(out_paths_mdx) or len(out_paths_demucs)!=len(audio_paths):
         print("Length of output paths and demucs paths do not match!")
         quit()
 

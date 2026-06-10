@@ -27,6 +27,7 @@ Before start:
 4. If you want the lyrics cleanup step, make sure local `ollama` is running and that the model from config exists on your machine.
 5. Prepare 2 separate virtual envs, because preprocessing and training use incompatible `numpy` versions.
 6. The commands below assume you run them from project root directory.
+7. If training package installation fails on Transformer Engine / CUDA builds, see `installing_packages.md`.
 
 How to create envs:
 1. Data env:

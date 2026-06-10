@@ -14,7 +14,7 @@ import shutil
 class Args:
     def __init__(self,
                  data_root: str = "./model",
-                 manifest: Optional[str] = None,
+                 manifest: Optional[str] = "config.yaml",
                  data_file: Optional[str] = None,
                  vocab_size: int = 1024,
                  tokenizer: str = "spe",  # choices=["spe", "wpe"]

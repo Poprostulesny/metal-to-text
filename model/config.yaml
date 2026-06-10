@@ -11,6 +11,8 @@ model:
   compute_eval_loss: false # eval samples can be very long and exhaust memory. Disable computation of transducer loss during validation/testing with this flag.
   log_prediction: true # enables logging sample predictions in the output during training
   rnnt_reduction: 'mean_volume'
+  loss:
+    loss_name: pytorch
   skip_nan_grad: false
   change_vocabulary: true
   gradient_checkpointing: true
@@ -26,16 +28,16 @@ model:
   use_precision_aware_optimizer: true
 
   transformer_engine: true
-  sequence_parallel: true
+  sequence_parallel: false
 
   train_ds:
     manifest_filepath: "/home/mateusz/PycharmProjects/metal-to-text/data/train_data_8.jsonl"
     sample_rate: ${model.sample_rate}
     batch_size: 1 # you may increase batch_size if your memory allows
     shuffle: true
-    num_workers: 0
+    num_workers: 15
     pin_memory: true
-    max_duration: 240
+    max_duration: 30
     min_duration: 0.1
 
     # tarred datasets
@@ -52,7 +54,7 @@ model:
     batch_size: 1
     shuffle: false
     use_start_end_token: false
-    num_workers: 0
+    num_workers: 4
     pin_memory: true
 
   test_ds:
@@ -61,7 +63,7 @@ model:
     batch_size: 1
     shuffle: false
     use_start_end_token: false
-    num_workers: 0
+    num_workers: 15
     pin_memory: true
 
   char_labels: # use for char based models
@@ -81,22 +83,22 @@ model:
     time_width: 0.05
 
   optim:
-    _target_: deepspeed.ops.adam.DeepSpeedCPUAdam   # lub deepspeed.ops.adam.FusedAdam
-    lr: 1e-4
-    betas: [ 0.9, 0.98 ]
-    weight_decay: 1e-3
+    # _target_: deepspeed.ops.adam.DeepSpeedCPUAdam   # lub deepspeed.ops.adam.FusedAdam
+    # lr: 1e-4
+    # betas: [ 0.9, 0.98 ]
+    # weight_decay: 1e-3
 
-    #    name: adamw
-#    lr: 1e-4
-#    # optimizer arguments
-#    betas: [0.9, 0.98]
-#    weight_decay: 1e-3
+    name: adamw
+    lr: 1e-4
+    # optimizer arguments
+    betas: [0.9, 0.98]
+    weight_decay: 1e-3
 
     # scheduler setup
     sched:
       name: CosineAnnealing
       # scheduler config override
-      warmup_steps: 5000
+      warmup_steps: 150
       warmup_ratio: null
       min_lr: 5e-6
 
@@ -107,14 +109,14 @@ trainer:
   max_steps: -1
   val_check_interval: 1.0
   accelerator: gpu
-  strategy: deepspeed_stage_3_offload
+  strategy: auto
 
 
 
 
   accumulate_grad_batches: 8
   gradient_clip_val: 1.0
-  precision: bf16-mixed  # 16, 32, or bf16
+  precision: bf16  # 16, 32, or bf16
   log_every_n_steps: 10  # Interval of logging.
   enable_progress_bar: True
   num_sanity_val_steps: 0 # number of steps to perform validation steps for sanity check the validation process before starting the training, setting to 0 disables it

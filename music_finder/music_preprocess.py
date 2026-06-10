@@ -1,4 +1,3 @@
-
 # Import necessary libraries for data processing, file operations, and machine learning.
 import json 
 import os
@@ -6,10 +5,8 @@ from pathlib import Path
 import sys
 import time
 import  torch
-import shutil
 import music_utils as ut
 from sklearn.model_selection import train_test_split
-from torch.cuda.amp import autocast
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -17,12 +14,60 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import project_config as pc
 
+
+
+
 # Configure PyTorch settings for optimal performance.
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 torch.backends.cudnn.benchmark = True
-torch.set_num_threads(8)  # Dostosuj do swojego CPU
+torch.set_num_threads(16)  # Dostosuj do swojego CPU
+memory_threshold = 0.95 # Audio separator leaks memory, therefore it has to be manually cleaned up when the set memory crosses a threshold. Adjust it so that it works on your computer
 
+
+def final_audio_path(source_path: str) -> str:
+    return str(Path(pc.get_final_music_path()) / ut.filename(source_path))
+
+
+def metadata_to_dict(rows):
+    return {
+        'audio_filepath': [row['path'] for row in rows],
+        'text': [row['lyrics'] for row in rows],
+        "genre": [row['genre'] for row in rows],
+        "artist": [row['artist'] for row in rows],
+    }
+
+
+def build_manifest_rows(music_file):
+    rows = []
+    for item in music_file:
+        audio_path = final_audio_path(item['path'])
+        if not os.path.isfile(audio_path):
+            print(f"Skipping manifest row because processed audio is missing: {audio_path}")
+            continue
+
+        rows.append({
+            'audio_filepath': os.path.abspath(audio_path),
+            'text': item['lyrics'],
+            'duration': ut.audio_length(audio_path),
+            'genre': item['genre'],
+            'artist': item['artist'],
+        })
+    return rows
+
+
+def split_manifest_rows(rows):
+    if len(rows) < 3:
+        return rows, [], []
+
+    seed = int(time.time()) % 137
+    train_data, test_valid_data = train_test_split(rows, test_size=0.2, random_state=seed)
+
+    if len(test_valid_data) < 2:
+        return train_data, test_valid_data, []
+
+    test_data, valid_data = train_test_split(test_valid_data, test_size=0.5, random_state=seed)
+    return train_data, test_data, valid_data
 
 def main():
     # Set up GPU if available and optimize memory usage.
@@ -48,43 +93,18 @@ def main():
         music_file = json.load(file)
 
 
-    # Initialize empty lists to store music metadata.
-    music_path = list()
-    music_lyrics = list()
-    music_genre = list()
-    music_artist = list()
+    pending_music = [item for item in music_file if not os.path.isfile(final_audio_path(item['path']))]
+    skipped_count = len(music_file) - len(pending_music)
+    print(f"Skipping {skipped_count} already preprocessed files.")
+    print(f"Preprocessing {len(pending_music)} new files.")
 
-    # Extract music metadata from the loaded JSON file.
-    for i in music_file:
+    if pending_music:
+        music_lyric_dict = metadata_to_dict(pending_music)
+        with torch.amp.autocast("cuda", enabled=True):
+            ut.model(music_lyric_dict, memory_threshold)
 
-        music_path.append(i['path'])
-        music_lyrics.append(i['lyrics'])
-        music_genre.append(i['genre'])
-        music_artist.append(i['artist'])
-
-    # Create a dictionary with music metadata and process it with the model.
-    music_lyric_dict = {'audio_filepath': music_path, 'text': music_lyrics,"genre": music_genre, "artist": music_artist}
-
-    with torch.cuda.amp.autocast():
-        music_lyric_dict = ut.model(music_lyric_dict)
-
-    # Create a dataset from the processed music data with audio column properly formatted.
-    music_dict = list()
-    for i in range(len(music_lyric_dict['text'])):
-        music_dict.append({
-            'audio_filepath':os.path.abspath(music_lyric_dict['audio_filepath'][i]),
-            'text':music_lyric_dict['text'][i],
-            'duration':ut.audio_length(music_lyric_dict['audio_filepath'][i]),
-            'genre':music_lyric_dict['genre'][i],
-            'artist':music_lyric_dict['artist'][i],
-        })
-
-    
-
-    # Split dataset into train (80%) and test-valid (20%) sets.
-    train_data, test_valid_data = train_test_split(music_dict, test_size=0.2, random_state=int(time.time())%137)
-    # Further split test-valid into validation and test sets (50% each).
-    test_data, valid_data = train_test_split(test_valid_data, test_size=0.5, random_state=int(time.time())%137)
+    music_dict = build_manifest_rows(music_file)
+    train_data, test_data, valid_data = split_manifest_rows(music_dict)
 
 
 
@@ -98,12 +118,7 @@ def main():
     # Get the output directory path from configuration.
     out_dir = pc.get_data_path()
 
-    # Create or recreate the output directory.
-    if not os.path.isdir(out_dir):
-        os.makedirs(out_dir)
-    else:
-        shutil.rmtree(out_dir)
-        os.makedirs(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
 
     # Save the processed dataset to disk.
     with open(out_dir + r"/test_data_1.jsonl", 'w', encoding="utf-8") as file:
@@ -116,6 +131,18 @@ def main():
         for i in valid_data:
             file.write(json.dumps(i, ensure_ascii=True) + "\n")
 
+    text_corpus_dir = Path(pc.get_model_dir()) / "text_corpus"
+    text_corpus_dir.mkdir(parents=True, exist_ok=True)
+    with open(text_corpus_dir / "document.txt", 'w', encoding="utf-8") as file:
+        line = ""
+        for text in [row['text'] for row in music_dict]:
+            for word in text.split():
+                if len(line) + len(word) + 1 > 1000:
+                    file.write(line.rstrip() + "\n")
+                    line = ""
+                line += word + " "
+        if line:
+            file.write(line.rstrip() + "\n")
     # Clean up GPU memory if available.
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
