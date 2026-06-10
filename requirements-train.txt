@@ -1,0 +1,18 @@
+# Model training and tokenizer preparation
+numpy>=1.22,<2
+torch~=2.7.1
+nemo-toolkit~=2.3.1
+transformers~=4.51.3
+datasets~=3.6.0
+evaluate~=0.4.3
+setuptools~=80.9.0
+
+# Direct imports used by training/tokenizer scripts
+lightning~=2.5.1
+omegaconf~=2.3.0
+tokenizers~=0.21.1
+deepseed
+transformer-engine
+ninja
+# Used by parts of the current stack and compatible with training env
+httpx>=0.24.0

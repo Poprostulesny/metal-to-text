@@ -1,0 +1,16 @@
+# Downloading and preprocessing data
+spotdl~=4.2.11
+ollama~=0.4.8
+progress~=1.6
+
+librosa~=0.11.0
+numpy>=2,<3
+soundfile~=0.13.1
+scikit-learn~=1.6.1
+audio-separator~=0.31.3
+
+# Used in preprocessing via autocast
+torch~=2.7.1
+
+# Used by some runtime paths in the current stack
+httpx>=0.24.0

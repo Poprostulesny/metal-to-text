@@ -2,16 +2,22 @@
 from ollama import Client, Message  # Import Message class
 import numpy as np
 import soundfile as sf
-import librosa
 import os
+from pathlib import Path
 import shutil
+import sys
 from audio_separator.separator import Separator
 import librosa
-import config as cf
 import re
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+import project_config as pc
+
 # Process lyrics using an AI model to sanitize and format them.
-def sanitized_lyrics(lyrics, ollama_url, model, message) -> str:
+def sanitized_lyrics(lyrics, ollama_url, model, message) -> str | None:
     # Initialize the client with the provided URL.
     client = Client(host=ollama_url)
 
@@ -25,10 +31,13 @@ def sanitized_lyrics(lyrics, ollama_url, model, message) -> str:
         messages=[system_msg, user_msg]
     )
     # Remove newlines from the response for cleaner output.
-    response.message.content= response.message.content.replace('\n', ' ')
-    response.message.content = re.sub(r"[^a-zA-Z.!0-9]",' ',response.message.content)
-    response.message.content = re.sub(r"\s+",' ', response.message.content)
-    return response.message.content
+    content = response['message']['content']
+    if not content:
+        return None
+    content = content.replace('\n', ' ')
+    content = re.sub(r"[^a-zA-Z.!0-9]", ' ', content)
+    content = re.sub(r"\s+", ' ', content)
+    return content
 
 # Extract the filename from a full path by getting characters after the last slash or backslash.
 def filename(path) -> str:
@@ -41,15 +50,30 @@ def filename(path) -> str:
     # name = name.replace(' ', '_')
     return name
 
+
+def separator_output_path(base_dir: str, path: str) -> str:
+    candidate = Path(path)
+    if candidate.is_absolute():
+        return str(candidate)
+
+    if candidate.exists():
+        return str(candidate)
+
+    joined = Path(base_dir) / candidate
+    return str(joined)
+
 # Process music files to extract and enhance vocals using multiple models.
-def model(music_lyric_dict, tmp_dir="./tmp",):
+def model(music_lyric_dict, tmp_dir=None):
+    if tmp_dir is None:
+        tmp_dir = pc.get_tmp_path()
+    final_music_dir = pc.get_final_music_path()
 
     # Create or recreate the final music output directory.
-    if not os.path.isdir("./final_music"):
-        os.makedirs("./final_music")
+    if not os.path.isdir(final_music_dir):
+        os.makedirs(final_music_dir)
     else:
-        shutil.rmtree("./final_music", ignore_errors=True)
-        os.makedirs("./final_music")
+        shutil.rmtree(final_music_dir, ignore_errors=True)
+        os.makedirs(final_music_dir)
 
     # Create or recreate the temporary directory for processing.
     if not os.path.isdir(tmp_dir):
@@ -63,6 +87,7 @@ def model(music_lyric_dict, tmp_dir="./tmp",):
         output_dir=tmp_dir,
         output_format='WAV',
         output_single_stem="Vocals",
+        use_autocast=True,
     )
 
     # Load the first vocal separation model and process all audio files.
@@ -91,8 +116,8 @@ def model(music_lyric_dict, tmp_dir="./tmp",):
     final_paths = list()
     for i in range(len(out_paths_mdx)):
         # Construct full paths to the separated audio files.
-        out_paths_mdx[i]="./tmp/"+out_paths_mdx[i]
-        out_paths_demucs[i]="./tmp/"+out_paths_demucs[i]
+        out_paths_mdx[i] = separator_output_path(tmp_dir, out_paths_mdx[i])
+        out_paths_demucs[i] = separator_output_path(tmp_dir, out_paths_demucs[i])
         # Load audio data from both models.
         y1, sr = librosa.load(out_paths_mdx[i], mono=True)
         y2, sr2 = librosa.load(out_paths_demucs[i], mono=True)
@@ -126,7 +151,7 @@ def model(music_lyric_dict, tmp_dir="./tmp",):
 
         # Generate output filename and path for the processed audio.
         input_filename = filename(music_lyric_dict['audio_filepath'][i])
-        out_path =r"./final_music/" + input_filename
+        out_path = str(Path(final_music_dir) / input_filename)
         final_paths.append(out_path)
         music_lyric_dict['audio_filepath'][i] = out_path
         # Save the processed audio to disk.
