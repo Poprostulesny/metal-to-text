@@ -154,7 +154,7 @@ def separator_output_path(base_dir: str, path: str) -> str:
     return str(joined)
 
 # Process music files to extract and enhance vocals using multiple models.
-def model(music_lyric_dict, memory_threshold, tmp_dir=None):
+def model(music_lyric_dict, memory_threshold, tmp_dir=None, remove_tmp_files=True):
     if tmp_dir is None:
         tmp_dir = pc.get_tmp_path()
     final_music_dir = pc.get_final_music_path()
@@ -227,8 +227,8 @@ def model(music_lyric_dict, memory_threshold, tmp_dir=None):
         out_paths_mdx[i] = separator_output_path(tmp_dir, out_paths_mdx[i])
         out_paths_demucs[i] = separator_output_path(tmp_dir, out_paths_demucs[i])
         # Load audio data from both models.
-        y1, sr = librosa.load(out_paths_mdx[i], mono=True)
-        y2, sr2 = librosa.load(out_paths_demucs[i], mono=True)
+        y1, sr = librosa.load(out_paths_mdx[i], mono=True, sr=16000)
+        y2, sr2 = librosa.load(out_paths_demucs[i], mono=True, sr=16000)
 
         # Verify sampling rates match between models.
         if sr != sr2:
@@ -269,7 +269,8 @@ def model(music_lyric_dict, memory_threshold, tmp_dir=None):
         print(f"Wrote averaged-spec ensemble: {out_path}")
 
     # Clean up temporary directory after processing is complete.
-    shutil.rmtree(tmp_dir, ignore_errors=True)
+    if remove_tmp_files==True:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
     # Return the updated dictionary with paths to processed audio files.
     return music_lyric_dict
 

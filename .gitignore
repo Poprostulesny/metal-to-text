@@ -18,3 +18,5 @@ model/parakeet-*
 model/backup
 nemo_experiments*
 spotdl*
+CLAUDE.md
+music_test*
