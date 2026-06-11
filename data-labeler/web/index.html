@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Metal-to-text labeler</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <button id="prevBtn" title="Previous song">◀</button>
+    <select id="songSelect"></select>
+    <button id="nextBtn" title="Next song">▶</button>
+    <span class="spacer"></span>
+    <span class="splits" id="splits"></span>
+    <span class="spacer"></span>
+    <label class="splits">max&nbsp;s
+      <input id="maxInput" type="number" min="1" step="1" style="width:64px" />
+    </label>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Waveform</h2>
+      <div id="waveform"></div>
+      <div class="transport">
+        <button id="playBtn" title="Play region (Space)">▶ Play</button>
+        <button id="loopBtn" title="Loop region (L)">↻ Loop</button>
+        <span class="selection" id="selection">no selection</span>
+        <span class="spacer"></span>
+        <button id="clearBtn" title="Clear selection">✕ Clear</button>
+        <button id="saveBtn" class="primary" title="Save (Enter / Ctrl+Enter)">💾 Save</button>
+      </div>
+      <textarea id="segText" placeholder="Segment text — select it from the lyrics, or type here…"></textarea>
+      <div class="hint">
+        <kbd>Space</kbd> play · <kbd>L</kbd> loop · <kbd>Enter</kbd> save ·
+        <kbd>Tab</kbd> next VAD region · <kbd>←</kbd>/<kbd>→</kbd> nudge end ·
+        <kbd>Alt</kbd>+arrows nudge start · <kbd>Shift</kbd> bigger step ·
+        <kbd>Del</kbd> delete · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo last
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Lyrics</h2>
+      <div id="lyrics"></div>
+      <h2 style="margin-top:16px">Saved segments</h2>
+      <ul class="seg-list" id="segList"></ul>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>
