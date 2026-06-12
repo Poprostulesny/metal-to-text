@@ -14,6 +14,9 @@
     <span class="spacer"></span>
     <span class="splits" id="splits"></span>
     <span class="spacer"></span>
+    <label class="splits" title="Shift all LRC lines by this many seconds (e.g. when the LRC was synced to a version with a different intro)">LRC&nbsp;±s
+      <input id="lrcOffset" type="number" step="0.1" value="0" style="width:64px" />
+    </label>
     <label class="splits">max&nbsp;s
       <input id="maxInput" type="number" min="1" step="1" style="width:64px" />
     </label>
@@ -22,21 +25,33 @@
   <main>
     <section class="panel">
       <h2>Waveform</h2>
+      <canvas id="overview" title="Whole song — click to pan, drag to zoom to a selection"></canvas>
+      <canvas id="zoombar" title="Visible range (aligned with the waveform below) — click to seek, drag to zoom in"></canvas>
       <div id="waveform"></div>
       <div class="transport">
-        <button id="playBtn" title="Play region (Space)">▶ Play</button>
+        <button id="playBtn" title="Play / pause (Space)">▶ Play</button>
+        <button id="restartBtn" title="Replay region from start (R)">⟲</button>
         <button id="loopBtn" title="Loop region (L)">↻ Loop</button>
+        <button id="skipBtn" title="Skip proposal (S)">⏭ Skip</button>
+        <label class="splits" title="Playback speed (pitch preserved)">
+          <input id="speedInput" type="range" min="0.5" max="2" step="0.25" value="1" style="width:90px; padding:0" />
+          <span id="speedVal">1×</span>
+        </label>
+        <span class="selection" id="clock">0:00.00</span>
         <span class="selection" id="selection">no selection</span>
         <span class="spacer"></span>
+        <span class="splits" id="progress"></span>
+        <button id="resetRejBtn" title="Restore skipped proposals for this song">↺</button>
         <button id="clearBtn" title="Clear selection">✕ Clear</button>
         <button id="saveBtn" class="primary" title="Save (Enter / Ctrl+Enter)">💾 Save</button>
       </div>
-      <textarea id="segText" placeholder="Segment text — select it from the lyrics, or type here…"></textarea>
+      <textarea id="segText" placeholder="Segment text — filled from synced lyrics, select from the panel, or type here…"></textarea>
       <div class="hint">
-        <kbd>Space</kbd> play · <kbd>L</kbd> loop · <kbd>Enter</kbd> save ·
-        <kbd>Tab</kbd> next VAD region · <kbd>←</kbd>/<kbd>→</kbd> nudge end ·
-        <kbd>Alt</kbd>+arrows nudge start · <kbd>Shift</kbd> bigger step ·
-        <kbd>Del</kbd> delete · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo last
+        <kbd>Space</kbd> play/pause · <kbd>R</kbd> replay · <kbd>L</kbd> loop ·
+        <kbd>Enter</kbd> save + next · <kbd>S</kbd> skip · <kbd>Tab</kbd> next proposal ·
+        <kbd>←</kbd>/<kbd>→</kbd> nudge end · <kbd>Alt</kbd>+arrows nudge start ·
+        <kbd>Shift</kbd> bigger step · <kbd>F</kbd> fit whole song ·
+        <kbd>T</kbd> tap-sync offset · <kbd>Del</kbd> delete · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo
       </div>
     </section>
 

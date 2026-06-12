@@ -28,7 +28,7 @@ MODEL_URL = (
 
 # Window / threshold tuning (Silero defaults). Bumping VAD_VERSION invalidates
 # every cached result so re-tuning is safe.
-VAD_VERSION = 2
+VAD_VERSION = 3
 SAMPLE_RATE = config.TARGET_SAMPLE_RATE
 WINDOW = 512
 CONTEXT = 64  # v5 model prepends the previous 64 samples to each window
@@ -37,6 +37,11 @@ NEG_THRESHOLD = THRESHOLD - 0.15
 MIN_SPEECH_SEC = 0.25
 MIN_SILENCE_SEC = 0.10
 SPEECH_PAD_SEC = 0.10
+
+# Raw VAD tends to cut sung vocals into 2-4s phrases; merging neighbours into
+# clips up to ~12s means far fewer save actions per song.
+MERGE_GAP_SEC = 0.8
+MERGE_MAX_SEC = 12.0
 
 _session = None
 _session_lock = threading.Lock()
@@ -158,6 +163,18 @@ def _probs_to_regions(probs: np.ndarray, total_samples: int) -> list[dict[str, f
     ]
 
 
+def _merge_regions(regions: list[dict[str, float]]) -> list[dict[str, float]]:
+    merged: list[dict[str, float]] = []
+    for region in regions:
+        if (merged
+                and region["start"] - merged[-1]["end"] < MERGE_GAP_SEC
+                and region["end"] - merged[-1]["start"] <= MERGE_MAX_SEC):
+            merged[-1]["end"] = region["end"]
+        else:
+            merged.append(dict(region))
+    return merged
+
+
 # --- caching + public api --------------------------------------------------
 
 def _cache_path(song: dict[str, Any]) -> Path:
@@ -187,7 +204,7 @@ def regions_for_song(song_index: int) -> list[dict[str, float]]:
             pass
 
     samples = _decode(source)
-    regions = _probs_to_regions(_speech_probs(samples), len(samples))
+    regions = _merge_regions(_probs_to_regions(_speech_probs(samples), len(samples)))
     cache.write_text(
         json.dumps({"fingerprint": fp, "regions": regions}, ensure_ascii=False),
         encoding="utf-8",

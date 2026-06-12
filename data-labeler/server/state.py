@@ -62,3 +62,42 @@ def spans_for_song(song_index: int) -> list[dict[str, Any]]:
         for path, info in _load().items()
         if int(info.get("song_index", -1)) == song_index
     ]
+
+
+# --- rejected proposals ------------------------------------------------------
+# Skipped suggestion keys per song id, so the review queue survives restarts.
+
+def _load_rejected() -> dict[str, list[str]]:
+    if not config.REJECTED_PATH.exists():
+        return {}
+    try:
+        with config.REJECTED_PATH.open("r", encoding="utf-8") as file:
+            data = json.load(file)
+        return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _save_rejected(rejected: dict[str, list[str]]) -> None:
+    config.ensure_output_dirs()
+    with config.REJECTED_PATH.open("w", encoding="utf-8") as file:
+        json.dump(rejected, file, ensure_ascii=False, indent=2)
+
+
+def rejected_for_song(song_id: str) -> list[str]:
+    return _load_rejected().get(song_id, [])
+
+
+def add_rejected(song_id: str, key: str) -> list[str]:
+    rejected = _load_rejected()
+    keys = rejected.setdefault(song_id, [])
+    if key not in keys:
+        keys.append(key)
+        _save_rejected(rejected)
+    return keys
+
+
+def clear_rejected(song_id: str) -> None:
+    rejected = _load_rejected()
+    if rejected.pop(song_id, None) is not None:
+        _save_rejected(rejected)

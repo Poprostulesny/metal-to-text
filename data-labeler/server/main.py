@@ -11,8 +11,8 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import audio, config, manifest, music, state, vad
-from .schemas import SegmentCreate, SegmentDelete, SegmentUpdate
+from . import audio, config, lrc, manifest, music, state, vad
+from .schemas import LrcOffset, RejectedKey, SegmentCreate, SegmentDelete, SegmentUpdate
 
 app = FastAPI(title="Metal-to-text labeler")
 
@@ -45,7 +45,34 @@ def get_song(index: int) -> dict:
     summary = music.song_summary(index)
     summary["duration"] = _safe_duration(summary["vocal_path"], summary["has_vocal"])
     summary["splits"] = _split_counts()
+    summary["lrc_lines"] = lrc.lines_for_song(index, summary["duration"])
+    summary["lrc_offset"] = lrc.get_offset(index)
+    summary["rejected"] = state.rejected_for_song(summary["id"])
     return summary
+
+
+@app.post("/api/songs/{index}/rejected")
+def add_rejected(index: int, body: RejectedKey) -> dict:
+    _guard_index(index)
+    keys = state.add_rejected(music.song_id(music.get_song(index)), body.key)
+    return {"rejected": keys}
+
+
+@app.delete("/api/songs/{index}/rejected")
+def clear_rejected(index: int) -> dict:
+    _guard_index(index)
+    state.clear_rejected(music.song_id(music.get_song(index)))
+    return {"rejected": []}
+
+
+@app.put("/api/songs/{index}/lrc_offset")
+def set_lrc_offset(index: int, body: LrcOffset) -> dict:
+    _guard_index(index)
+    lrc.set_offset(index, body.offset)
+    summary = music.song_summary(index)
+    duration = _safe_duration(summary["vocal_path"], summary["has_vocal"])
+    return {"offset": lrc.get_offset(index),
+            "lrc_lines": lrc.lines_for_song(index, duration)}
 
 
 @app.get("/api/songs/{index}/audio")

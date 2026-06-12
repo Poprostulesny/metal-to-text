@@ -15,12 +15,15 @@ REPO_ROOT = LABELER_DIR.parent
 # Inputs.
 MUSIC_JSON = REPO_ROOT / "music" / "music.json"
 VOCAL_DIR = REPO_ROOT / "music_finder" / "final_music"
+LRC_DIR = REPO_ROOT / "music" / "lrc"
 
 # Outputs (master manifest stays clean and 1:1 for NeMo).
 OUTPUT_DIR = LABELER_DIR / "output"
 AUDIO_OUTPUT_DIR = OUTPUT_DIR / "audio"
 MANIFEST_PATH = OUTPUT_DIR / "segments.jsonl"
 STATE_PATH = OUTPUT_DIR / "label_state.json"
+LRC_OFFSETS_PATH = OUTPUT_DIR / "lrc_offsets.json"
+REJECTED_PATH = OUTPUT_DIR / "rejected.json"
 VAD_CACHE_DIR = OUTPUT_DIR / "vad_cache"
 
 # Derived split manifests (rebuilt from the master after every change).

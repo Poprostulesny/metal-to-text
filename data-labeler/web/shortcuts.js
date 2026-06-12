@@ -28,6 +28,22 @@ export function bindShortcuts(handlers) {
       case "L":
         handlers.toggleLoop();
         break;
+      case "r":
+      case "R":
+        handlers.restart();
+        break;
+      case "s":
+      case "S":
+        handlers.skip();
+        break;
+      case "t":
+      case "T":
+        handlers.tapSync();
+        break;
+      case "f":
+      case "F":
+        handlers.zoomFit();
+        break;
       case "Tab":
         e.preventDefault();
         handlers.nextSuggestion(e.shiftKey ? -1 : 1);

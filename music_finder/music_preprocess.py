@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import time
 import  torch
+from torch.amp.autocast_mode import autocast
 import music_utils as ut
 from sklearn.model_selection import train_test_split
 
@@ -100,7 +101,7 @@ def main():
 
     if pending_music:
         music_lyric_dict = metadata_to_dict(pending_music)
-        with torch.amp.autocast("cuda", enabled=True):
+        with autocast("cuda", enabled=True):
             ut.model(music_lyric_dict, memory_threshold)
 
     music_dict = build_manifest_rows(music_file)
@@ -120,16 +121,17 @@ def main():
 
     os.makedirs(out_dir, exist_ok=True)
 
-    # Save the processed dataset to disk.
-    with open(out_dir + r"/test_data_1.jsonl", 'w', encoding="utf-8") as file:
-        for i in test_data:
-            file.write(json.dumps(i, ensure_ascii=True) + "\n")
-    with open(out_dir + r"/train_data_8.jsonl", 'w', encoding="utf-8") as file:
-        for i in train_data:
-            file.write(json.dumps(i, ensure_ascii=True) + "\n")
-    with open(out_dir + r"/valid_data_1.jsonl", 'w', encoding="utf-8") as file:
-        for i in valid_data:
-            file.write(json.dumps(i, ensure_ascii=True) + "\n")
+    # Unneeded, since we do it in the labeler
+    # # Save the processed dataset to disk.
+    # with open(out_dir + r"/test_data_1.jsonl", 'w', encoding="utf-8") as file:
+    #     for i in test_data:
+    #         file.write(json.dumps(i, ensure_ascii=True) + "\n")
+    # with open(out_dir + r"/train_data_8.jsonl", 'w', encoding="utf-8") as file:
+    #     for i in train_data:
+    #         file.write(json.dumps(i, ensure_ascii=True) + "\n")
+    # with open(out_dir + r"/valid_data_1.jsonl", 'w', encoding="utf-8") as file:
+    #     for i in valid_data:
+    #         file.write(json.dumps(i, ensure_ascii=True) + "\n")
 
     text_corpus_dir = Path(pc.get_model_dir()) / "text_corpus"
     text_corpus_dir.mkdir(parents=True, exist_ok=True)

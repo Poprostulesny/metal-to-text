@@ -7,6 +7,7 @@ from spotdl.types.options import DownloaderOptions
 from spotdl.types.playlist import Playlist
 import music_utils as ut
 import logging
+from time import sleep
 from tqdm import tqdm
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -14,6 +15,24 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import project_config as pc
+
+def clear_not_in_music_json(entries):
+    
+
+    keep = {Path(e["path"]).name for e in entries if e.get("path")}
+    keep.add("music.json")
+    music_dir= Path(pc.get_music_path())
+    removed = 0
+    for item in sorted(music_dir.iterdir()):
+        if item.is_dir() or item.name in keep:
+            continue
+        print(f"'Removing': {item.name}")
+        item.unlink()
+        removed += 1
+
+    print(f"'Removed' {removed} files, "
+          f"kept {len(keep) - 1} referenced by music.json")
+
 
 def load_existing_metadata(music_metadata_path):
     if not os.path.exists(music_metadata_path):
@@ -54,6 +73,7 @@ def main():
     os.makedirs(location_dir, exist_ok=True)
     songs_new = load_existing_metadata(music_metadata_path)
     existing_song_keys = metadata_keys(songs_new)
+    clear_not_in_music_json(songs_new)
     print(f"Loaded {len(songs_new)} existing metadata rows from {music_metadata_path}")
 
     downloader_options: DownloaderOptions = {
@@ -77,8 +97,8 @@ def main():
         "save_file": "spotdl_cache.txt",
         "filter_results": True,
         "album_type": None,
-        "threads": 16,
-        "cookie_file": None,
+        "threads": 1,
+        "cookie_file": "/home/mateusz/PycharmProjects/metal-to-text/music_finder/cookies.txt",
         "restrict": None,
         "print_errors": False,
         "sponsor_block": False,
@@ -96,7 +116,7 @@ def main():
         "only_verified_results": False,
         "sync_without_deleting": False,
         "max_filename_length": None,
-        "yt_dlp_args": None,
+        "yt_dlp_args":  "--js-runtimes node -f bestaudio/best",
         "detect_formats": None,
         "save_errors": "spotdl_errors.txt",
         "ignore_albums": None,
@@ -112,7 +132,27 @@ def main():
 
 
 
-    message = 'you get this lyric string downloaded from a site, output to me only the lyrics without any special characters and anything else not being sang, no other words should come out of you then the output string remember to add spaces or interpunction marks where needed, delete every enter and quotation marks.'
+    message = """You clean song lyrics scraped from a lyrics website into ASR training transcripts.
+
+Rules:
+1. Keep only the words that are actually sung, in their original order.
+2. Remove section markers like [Verse 1], [Chorus], (x2), contributor counts, "Embed", and any other text that is not sung.
+3. Backing vocals in parentheses are sung: keep the words, drop the parentheses.
+4. Lowercase everything.
+5. Remove all punctuation and special characters, but keep apostrophes inside words (i'm, don't, you're).
+6. Write numbers as words, exactly as they would be sung.
+7. Replace all line breaks with single spaces, so the output is one single line.
+8. Do not add, paraphrase, translate, or reorder any words. Output nothing except the cleaned lyrics.
+
+Example input:
+[Intro]
+We're not alone, tonight!
+[Chorus] (x2)
+Burn it down (burn it down)
+Burn it down again
+
+Example output:
+we're not alone tonight burn it down burn it down burn it down again"""
     spotdl = Spotdl(client_id='d2bc39f6f3ba4f86ba702ce43d9611e7', client_secret='349bdc3f646e4dca83efca5db4e2ff09',downloader_settings=downloader_options)
     
     
@@ -150,7 +190,7 @@ def main():
     
     print("Starting download")
     songs = spotdl.download_songs(songs)
-
+    sleep(1)
     songs_bad =list[str]()
     songs_good = {entry.get("path") for entry in songs_new if entry.get("path")}
     if os.name == 'nt':
@@ -173,10 +213,11 @@ def main():
                 continue
 
         if song.lyrics is not None and path is not None:
-            song.lyrics = ut.sanitized_lyrics(song.lyrics, ollama_url, model, message)
+            
             songs_new.append({
                 "path":   str(path),
-                "lyrics": song.lyrics,
+                "lyrics": ut.sanitized_lyrics(song.lyrics, ollama_url, model, message),
+                "synced_lyrics": song.lyrics,
                 "artist":song.artist,
                 "genre":song.genres,
             })
@@ -196,7 +237,7 @@ def main():
                     os.remove(i)
                 except OSError as error:
                     logger.error(f"Błąd podczas usuwania pliku {i}: {error}")
-
+    
     with open(music_metadata_path, "w", encoding="utf-8") as f:
         json.dump(songs_new, f, indent=2, ensure_ascii=False)
 

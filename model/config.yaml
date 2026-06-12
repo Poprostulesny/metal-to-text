@@ -71,7 +71,7 @@ model:
     labels: null # example list config: \[' ', 'a', 'b', 'c'\]
 
   tokenizer: # use for spe/bpe based tokenizer models
-    update_tokenizer: true
+    update_tokenizer: false
     dir: "/home/mateusz/PycharmProjects/metal-to-text/model/model_tokenizer"  # path to directory which contains either tokenizer.model (bpe) or vocab.txt (for wpe)
     type: bpe  # Can be either bpe (SentencePiece tokenizer) or wpe (WordPiece tokenizer)
 

@@ -45,10 +45,9 @@ train_manifest_path = str(Path(data_path) / "train_data_8.jsonl")
 valid_manifest_path = str(Path(data_path) / "valid_data_1.jsonl")
 
 # Spotify playlist URL used as the default downloader input.
-music_url = "https://open.spotify.com/playlist/3D1d7lpo4fwIxOGNKXDHv4?si=8e4ef642c8cc40cf"
-
+music_url = "https://open.spotify.com/playlist/3D1d7lpo4fwIxOGNKXDHv4?si=6773c8a6444746c1"
 # Ollama model name used to sanitize downloaded lyrics.
-model = "qwen2.5:14b-instruct-q4_K_M"
+model = "qwen2.5:14b-instruct-q4_0"
 
 # Genius API token used by spotdl lyric providers.
 genius_token = "alXXDbPZtK1m2RrZ8I4k2Hn8Ahsd0Gh_o076HYvcdlBvmc0ULL1H8Z8xRlew5qaG"

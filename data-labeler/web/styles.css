@@ -15,6 +15,10 @@
 
 * { box-sizing: border-box; }
 
+/* Always reserve the scrollbar: wavesurfer re-renders on any container resize,
+   so a scrollbar that toggles on/off creates a render feedback loop. */
+html { overflow-y: scroll; }
+
 body {
   margin: 0;
   font: 14px/1.45 "Segoe UI", system-ui, sans-serif;
@@ -54,7 +58,11 @@ button.danger { color: var(--warn); }
 
 main {
   display: grid;
-  grid-template-columns: 1fr 420px;
+  /* minmax(0, 1fr), not bare 1fr: grid items default to min-width auto, so the
+     zoomed (very wide) waveform would blow the panel up to its content width,
+     which makes wavesurfer re-render fill-parent, shrink, re-render scrollable,
+     grow... — an infinite resize loop that flickers the whole page. */
+  grid-template-columns: minmax(0, 1fr) 420px;
   gap: 14px;
   padding: 14px 16px;
   align-items: start;
@@ -75,7 +83,19 @@ main {
   color: var(--muted);
 }
 
-#waveform { background: var(--panel-2); border-radius: 8px; min-height: 128px; }
+/* Fixed height so wavesurfer's ResizeObserver never sees layout-driven
+   height changes (those would retrigger renders in a loop). */
+#waveform { background: var(--panel-2); border-radius: 8px; height: 128px; overflow: hidden; }
+#overview, #zoombar {
+  display: block;
+  width: 100%;
+  background: var(--panel-2);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  cursor: crosshair;
+}
+#overview { height: 36px; }
+#zoombar { height: 22px; }
 
 .transport {
   display: flex;
@@ -115,6 +135,7 @@ textarea#segText {
 }
 #lyrics .consumed { color: var(--muted); background: rgba(255,255,255,0.04); border-radius: 3px; }
 #lyrics .editing { background: var(--active); color: var(--text); border-radius: 3px; }
+#lyrics .karaoke { background: rgba(110, 168, 254, 0.30); color: var(--text); border-radius: 3px; }
 #lyrics .caret::after { content: "▎"; color: var(--good); font-weight: 700; }
 
 .seg-list { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow: auto; }

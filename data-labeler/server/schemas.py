@@ -24,3 +24,11 @@ class SegmentUpdate(BaseModel):
 
 class SegmentDelete(BaseModel):
     audio_filepath: str
+
+
+class LrcOffset(BaseModel):
+    offset: float
+
+
+class RejectedKey(BaseModel):
+    key: str
